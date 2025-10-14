@@ -1,3 +1,5 @@
+#Joshua Maldonado
+
 import random
 
 # -----------------------------
@@ -31,13 +33,14 @@ class Room:
                 lines.append(f"To the {direction} is the {target_name}.")
         return " ".join(lines)
 
-    def enter(self):
+    def enter(self, player, game_state):
         self.visited = True
         print(f"\nYou enter the {self.get_display_name()}.")
 
         #special events in special rooms
         if self.actual_name == "Ringmaster’s Chamber":
-            final_room(player)
+            final_room(player,game_state)
+            return
 
         if self.actual_name == 'Secret Room':
             player.steps += 2
@@ -84,6 +87,7 @@ class GameState:
         self.lifted = False
         self.color_solved = False
         self.grave_solved = False
+        self.end = False
 
         #Tracking Used Scare Events
         self.ambient_pool = []
@@ -133,7 +137,7 @@ def trap_event(player,game_state):
             print("\nThe Clowns Come Alive And Chase Your Red Nose Into The Next Room You Shut The Door Behind You but Lose That Path!")
             player.location = game_state.portrait_room
             del player.location.connections['right']
-            player.location.enter()
+            player.location.enter(player, game_state)
 
 
 # -----------------------------
@@ -169,7 +173,7 @@ def pop_balloon(game_state, player):
 
 
 def color_room_puzzle(game_state, player):
-    if game_state.color_puzzle_unlocked == False:
+    if not game_state.color_puzzle_unlocked:
         if "blue button" not in player.inventory:
             print("\nYou need the blue button to activate the panel.")
             return
@@ -243,12 +247,14 @@ def portrait_room_puzzle(game_state, player):
         print("There is a slot for something... maybe a lever?")
 
 
-def final_room(player):
+def final_room(player,game_state):
     if "dagger" in player.inventory and player.steps >= 1:
         print("\n🎉 You stab the evil clown and escape the mansion!")
-        exit()
+        game_state.end = True
+        return
     else:
         print("\n☠️ You made it but you are out of steps you die while the clown laughs...")
+        game_state.end = True
         return
 
 
@@ -287,7 +293,7 @@ def setup_game():
         color_room = Room("Yellow Door", "Color Puzzle Room", "A room with lights flashing different colors across is a panel missing a button. Current only red, green, and yellow are on the panel")
         hallway_to_graveyard = Room("Dark Door", "Hallway to Graveyard", "Cold air flows through this dim passage.")
         graveyard = Room("Black Door", "Graveyard", "The graves of three brothers stand in silence only the year of death is seen 1857, 1889, and 1905. There is a lever on the back of each grave.")
-        circus = Room("Gold Door", "Circus Room", "Trapeze artists swing above. Across you can see a door missing it's handle.")
+        circus = Room("Gold Door", "Circus Room", "Trapeze artists swing above. To your left you can see a door missing it's handle.")
         final_hallway = Room("Silver Door", "Final Hallway", "The last stretch...")
         final_room = Room("Crimson Door", "Ringmaster’s Chamber", "The evil clown awaits.")
 
@@ -334,19 +340,18 @@ def setup_game():
 # Game Loop
 # -----------------------------
 def game_loop(player, game_state):
-    player.location.enter()
-
+    player.location.enter(player, game_state)
     while player.steps > 0:
         print(f"\nSteps remaining: {player.steps}")
         print('---------------------------------------------------------')
-        command = input("> ").lower()
+        command = input("Enter Your Action: ").lower()
 
         if command.startswith("go "):
             direction = command.split("go ")[1]
             if direction in player.location.connections:
                 player.steps -= 1
                 player.location = player.location.connections[direction]
-                player.location.enter()
+                player.location.enter(player, game_state)
 
             else:
                 print("\nYou can't go that way.")
@@ -422,10 +427,11 @@ def game_loop(player, game_state):
             # --- Wheel Handle in Circus Room ---
             elif item == "wheel handle":
                 if player.location.actual_name == "Circus Room":
-                    print("\nYou attach the wheel handle to the mechanism. The door creaks open!")
+                    print("\nYou attach the wheel handle to the mechanism and turn it. The door creaks open!")
                     # Ensure the Circus connects to Final Hallway
                     player.location.connections["left"] = game_state.final_hallway
                     player.inventory.remove("wheel handle")
+                    player.location.description = 'Trapeze artists swing above. The door now remains open.'
                     print(f'\n{player.location.describe_exits()}')
                 else:
                     print("\nThe wheel handle doesn't fit anywhere here.")
@@ -510,7 +516,9 @@ def game_loop(player, game_state):
             print("\nUnknown command. Type 'help' for a list of actions.")
             print(f'\n{player.location.describe_exits()}')
 
-    if player.steps <= 0:
+        if game_state.end:
+            break
+    if player.steps <= 0 and player.location.actual_name != "Ringmaster’s Chamber":
         print("\nThe last echo of circus music fades... you collapse as the mansion claims another victim.")
         return
 
