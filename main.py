@@ -37,9 +37,9 @@ class Room:
         # Special hint in the starting room
         if self.actual_name == "Starting Room":
             print(f'\n{self.description}')
-            print('You hear a voice over the speakers, “You have been selected to play my game \nYou are granted 50 steps to find me if you WIN you are set FREE! LOSE and you DIE!”')
+            print('You hear a voice over the speakers, “You have been selected to play my game, you are granted 50 steps to find me if you WIN you are set FREE! LOSE and you DIE!”')
             print('\nIf stuck, scream for "help".')
-            print('Type go followed by a direction. forward, back, left or right. To Move. ')
+            print('\nType go followed by a direction. forward, back, left or right. To Move. ')
         elif self.actual_name == "Main Hall":
             print('\nThe speaker voice is heard again. "Do not get lost or confused "look" for clues"')
    # Always show exits dynamically
@@ -62,19 +62,24 @@ class Player:
 class GameState:
     def __init__(self):
         self.color_code = random.sample(["red", "green", "blue", "yellow"], 4)
-        self.grave_order = random.sample(["oldest", "middle", "youngest"], 3)
+        self.grave_order = random.sample(["Oldest", "Middle", "Youngest"], 3)
         self.blue_button_found = False
+        self.color_puzzle_unlocked = False
         self.balloon_pop_count = 0
         self.secret_room_opened = False
         self.dagger_unlocked = False
+
+        #Tracking Used Scare Events
+        self.ambient_pool = []
+        self.major_scare_pool = []
 
 
 
 # -----------------------------
 # Ambient & Scare Events
 # -----------------------------
-def ambient_event():
-    events = [
+def ambient_event(game_state):
+    all_events = [
         "You hear faint circus music drifting from nowhere...",
         "A child’s laughter echoes, then cuts off abruptly.",
         "The lights flicker, and for a moment the shadows seem to move.",
@@ -83,19 +88,25 @@ def ambient_event():
         "The smell of popcorn fills the air, then vanishes instantly.",
         "A whisper calls your name, but the room is empty."
     ]
+    if not game_state.ambient_pool:
+        game_state.ambient_pool = random.sample(all_events, len(all_events))
     if random.randint(1, 100) <= 10:  # 10% chance
-        print(f'\n{random.choice(events)}')
+        event = game_state.ambient_pool.pop()
+        print(f'\n{event}')
 
 
-def major_scare_event(player):
-    events = [
+def major_scare_event(player,game_state):
+    all_events = [
         "💥 A statue crashes to the ground behind you with a deafening bang!",
         "⚡ The lights explode overhead, showering sparks around you!",
         "🔪 A knife whizzes past your head and embeds itself in the wall!",
         "🎭 A clown mannequin topples forward, almost pinning you beneath it!"
     ]
-    if random.randint(1, 100) <= 3:  # 3% chance
-        event = random.choice(events)
+    if not game_state.major_scare_pool:
+        game_state.major_scare_pool = random.sample(all_events, len(all_events))
+
+    if random.randint(1, 100) <= 5:  # 5% chance
+        event = game_state.major_scare_pool.pop()
         print(f'\n{event}')
         print("The shock rattles you... you stumble and lose 1 step.")
         player.steps -= 1
@@ -134,8 +145,12 @@ def color_room_puzzle(game_state, player):
     if "blue button" not in player.inventory:
         print("You need the blue button to activate the panel.")
         return
-
-    guess = input("Enter the color sequence (e.g. red green blue yellow): ").lower().split()
+    elif "blue button" in player.inventory and game_state.color_puzzle_unlocked == False:
+        print("The panel is missing a button.")
+        return
+    guess = input("Enter the color sequence (e.g. red green blue yellow): or type back to leave it for later").lower().split()
+    if guess == 'back':
+        return
     if guess == game_state.color_code:
         print("✅ Correct! The door opens.")
         player.location.connections["forward"] = game_state.grave_hallway
@@ -150,8 +165,10 @@ def graveyard_puzzle(game_state, player):
     print("You see three graves: Oldest, Middle, Youngest.")
     order = []
     for i in range(3):
-        choice = input(f"Choose grave #{i+1} to activate: ").lower()
+        choice = input(f"Choose grave #{i+1} to activate: or type back to leave it for later").lower()
         order.append(choice)
+        if choice == 'back':
+            return
 
     if order == game_state.grave_order:
         print("💀 A clown skeleton rises holding a wheel handle.")
@@ -187,7 +204,7 @@ def setup_game():
         game_state = GameState()
 
         # --- Core rooms ---
-        starting_room = Room("White Door", "Starting Room", "You awaken in darkness. Circus music echoes.")
+        starting_room = Room("White Door", "Starting Room", "You awaken in darkness. Circus music echoes.",)
         main_hall = Room("Green Door", "Main Hall", "A grand hallway with two branching paths.")
         storage = Room("Red Door", "Storage Room", "Dusty shelves and a locked cabinet.", items=["crowbar"])
         mirror = Room("Blue Door", "Mirror Room", "Distorted reflections surround you. If only you had a way to break free...")
@@ -195,27 +212,27 @@ def setup_game():
                               "The hallway feels smaller the further you go. A dusty bench sits halfway down.",
                               items=["lever"])
         dining = Room("Orange Door", "Dining Hall",
-                      "You see a fancy dinner table with a giant covered platter try to 'lift' it.")
+                      "You see a fancy dinner table with a giant covered platter. Are you curious enough to lift it?")
 
         # --- Dining Hall branches ---
-        hallway_to_balloon = Room("Tan Door", "Hallway to Balloon Room", "A narrow corridor with faded posters.")
-        balloon_room = Room("Pink Door", "Balloon Room", "20 balloons float eerily.", )
-        secret_room = Room("Hidden Door", "Secret Room", "A hidden chamber with a freshly inked note.",
+        hallway_to_balloon = Room("Tan Door", "Hallway to Balloon Room", "A narrow corridor with faded posters for an old circus.")
+        balloon_room = Room("Pink Door", "Balloon Room", "10 red balloons float eerily, maybe you will float too... If only you had something to pop them.", )
+        secret_room = Room("Hidden Door", "Secret Room", "A hidden chamber with a freshly inked note. You strangely feel refreshed.",
                            items=["graveyard note"])
 
         stairway_to_portrait = Room("Brown Door", "Stairway to Portrait Room",
                                     "A spiraling stairway with creaky steps.")
-        portrait_room = Room("Gray Door", "Portrait Room", "A painting has a slot for a lever.",)
+        portrait_room = Room("Gray Door", "Portrait Room", "This room is surrounded by paintings of a family of clowns. You notice one has a slot maybe something could fit into it.",)
         hallway_to_clown_gallery = Room("Dark Gray Door", "Hallway to Clown Gallery",
-                                        "Statues line the walls, watching silently.")
-        clown_gallery = Room("White Door", "Clown Gallery", "Statues stare silently. One has a red nose and small piece of paper stuck under it.",
+                                        "Statues line the walls, watching menacingly you feel like they might move when you're not watching.")
+        clown_gallery = Room("White Door", "Clown Gallery", "Statues stare silently. One has a red nose, you barely notice a small piece of paper stuck under it.",
                              items=["color note"])
 
         # --- Puzzle path ---
-        color_room = Room("Yellow Door", "Color Puzzle Room", "A panel awaits a color sequence.")
+        color_room = Room("Yellow Door", "Color Puzzle Room", "A room with lights flashing different colors across is a panel missing a button. Current only red, green, and yellow are on the panel")
         hallway_to_graveyard = Room("Dark Door", "Hallway to Graveyard", "Cold air flows through this dim passage.")
-        graveyard = Room("Black Door", "Graveyard", "Three graves stand in silence.",)
-        circus = Room("Gold Door", "Circus Room", "Trapeze artists swing above. A door awaits a wheel handle.")
+        graveyard = Room("Black Door", "Graveyard", "The graves of three brothers stand in silence only the year of death is seen 1857, 1889, and 1905. There is a lever on the back of each grave.")
+        circus = Room("Gold Door", "Circus Room", "Trapeze artists swing above. Across you can see a door missing it's handle.")
         final_hallway = Room("Silver Door", "Final Hallway", "The last stretch...")
         final_room = Room("Crimson Door", "Ringmaster’s Chamber", "The evil clown awaits.")
 
@@ -276,11 +293,11 @@ def game_loop(player, game_state):
                 player.location.enter()
 
             else:
-                print("You can't go that way.")
+                print("\nYou can't go that way.")
 
         elif command == "lift":
             if player.location.actual_name == "Dining Hall":
-                print("There Lays a Clown Head on Dining Hall Table with a Note in it's Mouth Reading: 'Pop Pop Pop All The Balloons!'")
+                print("\nA clown head lies on the dining hall table, with a note in its mouth reading: 'Pop pop pop all the balloons!'")
             else:
                 continue
 
@@ -288,25 +305,25 @@ def game_loop(player, game_state):
             item = command.split("use ")[1]
 
             if item not in player.inventory:
-                print("You don't have that item.")
+                print("\nYou don't have that item.")
                 continue
 
             # --- Notes (reminders) ---
             if item == "graveyard note":
-                print(f"The note reads: The order of the graves is {",".join(map(str,game_state.grave_order))}.")
+                print(f"\nThe note reads: The order of the graves is {" ".join(map(str,game_state.grave_order))}.")
             elif item == "color note":
-                print(f"The note shows a sequence of colors scribbled in crayon. {",".join(map(str,game_state.color_code))}")
+                print(f"\nThe note shows a sequence of colors scribbled in crayon. {" ".join(map(str,game_state.color_code))}")
             # --- Crowbar in Mirror Room ---
             elif item == "crowbar":
                 if player.location.actual_name == "Mirror Room":
-                    print("You smash the mirrors with the crowbar. Shards scatter everywhere, revealing a hidden exit!")
-                    print("Sadly the crowbar broke on impact.")
+                    print("\nYou smash the mirrors with the crowbar. Shards scatter everywhere, revealing a hidden exit!")
+                    print("\nSadly the crowbar broke on impact.")
                     # Add the exit to Trippy Hallway
                     player.location.connections["forward"] = game_state.trippy_hallway
                     player.inventory.remove("crowbar")
                     print(f'\n{player.location.describe_exits()}')
                 else:
-                    print("You swing the crowbar around, but nothing useful happens.")
+                    print("\nYou swing the crowbar around, but nothing useful happens.")
 
             # --- Lever in Portrait Room ---
             elif item == "lever":
@@ -315,71 +332,71 @@ def game_loop(player, game_state):
                     player.inventory.remove("lever")
                     game_state.portrait_room.items.append('dagger')
                 else:
-                    print("There's nowhere to use the lever here.")
+                    print("\nThere's nowhere to use the lever here.")
+
+            # --- Dagger in Balloon Room ---
+            elif item == "dagger":
+                if player.location.actual_name == "Balloon Room":
+                    pop_balloon(game_state, player)
 
             # --- Blue Button in Color Room ---
             elif item == "blue button":
                 if player.location.actual_name == "Color Puzzle Room":
-                    print("You press the blue button into the panel. The puzzle activates!")
+                    print("\nYou press the blue button into the panel. The puzzle activates!")
+                    game_state.color_puzzle_unlocked = True
                     color_room_puzzle(game_state, player)
                     player.inventory.remove("blue button")
                 else:
-                    print("The button does nothing here.")
+                    print("\nThe button does nothing here.")
 
             # --- Wheel Handle in Circus Room ---
             elif item == "wheel handle":
                 if player.location.actual_name == "Circus Room":
-                    print("You attach the wheel handle to the mechanism. The door creaks open!")
-                    # Ensure the Circus connects forward to Final Hallway
+                    print("\nYou attach the wheel handle to the mechanism. The door creaks open!")
+                    # Ensure the Circus connects to Final Hallway
                     player.location.connections["left"] = game_state.final_hallway
                     player.inventory.remove("wheel handle")
                     print(f'\n{player.location.describe_exits()}')
                 else:
-                    print("The wheel handle doesn't fit anywhere here.")
+                    print("\nThe wheel handle doesn't fit anywhere here.")
 
             else:
-                print("You can't use that here.")
+                print("\nYou can't use that here.")
 
         elif command.startswith("take "):
             item = command.split("take ")[1]
             if item in player.location.items:
                 player.inventory.append(item)
                 player.location.items.remove(item)
-                print(f"You took the {item}.")
+                print(f"\nYou took the {item}.")
                 if item == "lever":
-                    print("The lever feels unnaturally heavy, as if it resists being carried.")
+                    print("\nThe lever feels unnaturally heavy, as if it resists being carried.")
                 elif item == "crowbar":
-                    print("The crowbar is rusted, but sturdy enough to smash through glass or wood.")
-                    print('Type INVENTORY to see the inventory. ')
+                    print("\nThe crowbar is rusted, but sturdy enough to smash through glass or wood.")
+                    print('\nType INVENTORY to see the inventory. ')
                     print('Type USE followed by item name to use ITEM')
                 elif item == "color note":
-                    print("The clow statue lunges towards you and breaks on the floor. In the rubble lays the 'clown nose'")
+                    print("\nThe clow statue lunges towards you and breaks on the floor. In the rubble lays the 'clown nose'")
                     player.location.items.append('clown nose')
                 elif item == "clown nose":
-                    print("You slip the clown nose on. It squeaks. You feel ridiculous.")
+                    print("\nYou slip the clown nose on. It squeaks. You feel ridiculous.")
                 elif item == "dagger":
-                    print("The ceremonial dagger hums faintly, as though eager for blood.")
+                    print("\nThe ceremonial dagger hums faintly, as though eager for blood.")
             else:
-                print("That item isn't here.")
+                print("\nThat item isn't here.")
 
         elif command == "inventory":
-            print("Inventory:", ", ".join(player.inventory) if player.inventory else "Empty")
+            print("\nInventory:", ", ".join(player.inventory) if player.inventory else "Empty")
 
         elif command == "look":
-            print(player.location.description)
+            print(f'\n{player.location.description}')
             if player.location.items:
-                print("You see:", ", ".join(player.location.items))
+                print("\nYou see:", ", ".join(player.location.items))
                 print(f'\n{player.location.describe_exits()}')
             else:
                 print(f'\n{player.location.describe_exits()}')
-            ambient_event()
-            major_scare_event(player)
-
-        elif command == "pop balloon":
-            if player.location.actual_name == "Balloon Room":
-                pop_balloon(game_state, player)
-            else:
-                print("You can't do that here.")
+            ambient_event(game_state)
+            major_scare_event(player,game_state)
 
         elif command == "solve":
             if player.location.actual_name == "Graveyard":
@@ -387,26 +404,25 @@ def game_loop(player, game_state):
             elif player.location.actual_name == "Color Puzzle Room":
                 color_room_puzzle(game_state, player)
             else:
-                print("You can't do that here.")
+                print("\nYou can't do that here.")
 
         elif command == "help":
             print("\nAvailable commands:")
             print("  go [direction]   - Move to another room (forward, left, right, back)")
-            print("  look             - Look around the room for details")
             print("  take [item]      - Pick up an item in the room")
-            print("  inventory        - Check what you're carrying")
             print("  use [item]       - Use an item (notes remind you, tools solve puzzles)")
-            print("  pop balloon      - Pop a balloon (Balloon Room only)")
+            print("  look             - Look around the room for details")
+            print("  inventory        - Check what you're carrying")
             print("  solve            - Attempt the puzzles (Color Room and Graveyard only)")
             print("  quit             - End the game")
             print("\nTip: Not everything is useful... but everything adds to the story.")
 
         elif command == "quit":
-            print("The circus music fades as you take the easy way out...")
+            print("\nThe circus music fades as you take the easy way out...")
             break
 
         else:
-            print("Unknown command. Type 'help' for a list of actions.")
+            print("\nUnknown command. Type 'help' for a list of actions.")
 
     if player.steps <= 0:
         print("\nThe last echo of circus music fades... you collapse as the mansion claims another victim.")
