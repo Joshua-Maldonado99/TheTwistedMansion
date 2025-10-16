@@ -1,5 +1,4 @@
 #Joshua Maldonado
-
 import random
 
 # -----------------------------
