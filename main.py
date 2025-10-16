@@ -42,21 +42,23 @@ class Room:
             final_room(player,game_state)
             return
 
-        if self.actual_name == 'Secret Room':
+        if self.actual_name == "Secret Room":
             player.steps += 2
 
-        if self.actual_name == 'Hallway to Clown Gallery':
+        if self.actual_name == "Hallway to Clown Gallery" and "clown nose" in player.inventory:
             trap_event(player,game_state)
             return
+        if self.actual_name == "Balloon Room" and "dagger" in player.inventory:
+            player.location.description = f"{game_state.balloon_count} red balloons float eerily. USE something sharp to pop them"
 
         # Special hint in the starting room and main hall
         if self.actual_name == "Starting Room":
             print(f'\n{self.description}')
             print('\nYou hear a voice over the speakers, “You have been selected to play my game, you are granted 50 steps to find me if you WIN you are set FREE! LOSE and you DIE!”')
-            print('\nIf stuck, scream for "help".')
-            print('\nType go followed by a direction. forward, back, left or right. To Move. ')
+            print('\nIf stuck, scream for HELP.')
+            print('\nType GO followed by a direction forward, back, left or right to move. ')
         elif self.actual_name == "Main Hall":
-            print('\nThe speaker voice is heard again. "Do not get lost or confused "look" for clues"')
+            print('\nThe speaker voice is heard again. "Do not get lost or confused LOOK for clues"')
    # Always show exits dynamically
         print(f'\n{self.describe_exits()}')
 
@@ -112,7 +114,7 @@ def ambient_event(game_state):
         game_state.ambient_pool = random.sample(all_events, len(all_events))
     if random.randint(1, 100) <= 10:  # 10% chance
         event = game_state.ambient_pool.pop()
-        print(f'\n{event}')
+        print(f'\n\n{event}')
 
 
 def major_scare_event(player,game_state):
@@ -127,14 +129,14 @@ def major_scare_event(player,game_state):
 
     if random.randint(1, 100) <= 5:  # 5% chance
         event = game_state.major_scare_pool.pop()
-        print(f'\n{event}')
-        print("\nThe fear rattles you... you stumble and lose 1 step.")
-        player.steps -= 1
+        print(f'\n\n{event}')
+        print("\nThe fear rattles you... you stumble and lose 3 step.")
+        player.steps -= 3
 
 def trap_event(player,game_state):
     if player.location.actual_name == 'Hallway to Clown Gallery':
         if "clown nose" in player.inventory:
-            print("\nThe Clowns Come Alive And Chase Your Red Nose Into The Next Room You Shut The Door Behind You but Lose That Path!")
+            print("\nThe Clowns Come Alive And Chase Your Red Nose Into The Next Room You Shut The Door Behind You but Lose That Path!\n\n")
             player.location = game_state.portrait_room
             del player.location.connections['right']
             player.location.enter(player, game_state)
@@ -150,7 +152,7 @@ def pop_balloon(game_state, player):
     else:
         game_state.balloon_pop_count += 1
         game_state.balloon_count -= 1
-        player.location.description = f"{game_state.balloon_count} red balloons float eerily, maybe you will float too... If only you had something to pop them."
+        player.location.description = f"{game_state.balloon_count} red balloons float eerily. USE something sharp to pop them"
         chance = game_state.balloon_pop_count * 5
         if not game_state.blue_button_found and random.randint(1, 100) <= chance:
             game_state.blue_button_found = True
@@ -273,7 +275,7 @@ def setup_game():
                               "The hallway feels smaller the further you go. A dusty bench sits halfway down.",
                               items=["lever"])
         dining = Room("Orange Door", "Dining Hall",
-                      "You see a fancy dinner table with a giant covered platter. Are you curious enough to lift it?")
+                      "You see a fancy dinner table with a giant covered platter. Are you curious enough to LIFT it?")
 
         # --- Dining Hall branches ---
         hallway_to_balloon = Room("Tan Door", "Hallway to Balloon Room", "A narrow corridor with faded posters for an old circus.")
@@ -283,7 +285,7 @@ def setup_game():
 
         stairway_to_portrait = Room("Brown Door", "Stairway to Portrait Room",
                                     "A spiraling stairway with creaky steps.")
-        portrait_room = Room("Gray Door", "Portrait Room", "This room is surrounded by paintings of a family of clowns. You notice one has a slot maybe something could fit into it.",)
+        portrait_room = Room("Gray Door", "Portrait Room", "This room is surrounded by paintings of a family of clowns. You notice one has a slot for something to fit into it.",)
         hallway_to_clown_gallery = Room("Dark Gray Door", "Hallway to Clown Gallery",
                                         "Statues line the walls, watching menacingly you feel like they might move when you're not watching.")
         clown_gallery = Room("White Door", "Clown Gallery", "Statues stare silently. One has a red nose, you barely notice a small piece of paper stuck under it.",
@@ -292,7 +294,7 @@ def setup_game():
         # --- Puzzle path ---
         color_room = Room("Yellow Door", "Color Puzzle Room", "A room with lights flashing different colors across is a panel missing a button. Current only red, green, and yellow are on the panel")
         hallway_to_graveyard = Room("Dark Door", "Hallway to Graveyard", "Cold air flows through this dim passage.")
-        graveyard = Room("Black Door", "Graveyard", "The graves of three brothers stand in silence only the year of death is seen 1857, 1889, and 1905. There is a lever on the back of each grave.")
+        graveyard = Room("Black Door", "Graveyard", "The graves of three brothers stand in silence only the year of death is seen 1857, 1889, and 1905. There are levers on the back of each grave.")
         circus = Room("Gold Door", "Circus Room", "Trapeze artists swing above. To your left you can see a door missing it's handle.")
         final_hallway = Room("Silver Door", "Final Hallway", "The last stretch...")
         final_room = Room("Crimson Door", "Ringmaster’s Chamber", "The evil clown awaits.")
@@ -372,16 +374,15 @@ def game_loop(player, game_state):
 
             if item not in player.inventory:
                 print("\nYou don't have that item.")
-                print(f'\n{player.location.describe_exits()}')
                 continue
 
             # --- Notes (reminders) ---
             if item == "graveyard note":
                 print(f"\nThe note reads: The order of the graves is {', '.join(map(lambda x: x.capitalize(), game_state.grave_order))}.")
-                print(f'\n{player.location.describe_exits()}')
+
             elif item == "color note":
                 print(f"\nThe note shows a sequence of colors scribbled in crayon. {" ".join(map(str,game_state.color_code))}")
-                print(f'\n{player.location.describe_exits()}')
+
             # --- Crowbar in Mirror Room ---
             elif item == "crowbar":
                 if player.location.actual_name == "Mirror Room":
@@ -391,10 +392,9 @@ def game_loop(player, game_state):
                     player.location.connections["forward"] = game_state.trippy_hallway
                     player.inventory.remove("crowbar")
                     player.location.description = 'Shattered glass covers the floor with a door now visible across the room.'
-                    print(f'\n{player.location.describe_exits()}')
+
                 else:
                     print("\nYou swing the crowbar around, but nothing useful happens.")
-                    print(f'\n{player.location.describe_exits()}')
 
             # --- Lever in Portrait Room ---
             elif item == "lever":
@@ -402,10 +402,8 @@ def game_loop(player, game_state):
                     portrait_room_puzzle(game_state, player)
                     player.inventory.remove("lever")
                     game_state.portrait_room.items.append('dagger')
-                    print(f'\n{player.location.describe_exits()}')
                 else:
                     print("\nThere's nowhere to use the lever here.")
-                    print(f'\n{player.location.describe_exits()}')
 
             # --- Dagger in Balloon Room ---
             elif item == "dagger":
@@ -418,11 +416,10 @@ def game_loop(player, game_state):
                     print("\nYou press the blue button into the panel. The puzzle activates!")
                     game_state.color_puzzle_unlocked = True
                     player.location.description = "A room with lights flashing different colors across is a panel awaiting the correct code."
-                    color_room_puzzle(game_state, player)
                     player.inventory.remove("blue button")
+                    print("Type Solve To Attempt Puzzle!")
                 else:
                     print("\nThe button does nothing here.")
-                    print(f'\n{player.location.describe_exits()}')
 
             # --- Wheel Handle in Circus Room ---
             elif item == "wheel handle":
@@ -432,14 +429,11 @@ def game_loop(player, game_state):
                     player.location.connections["left"] = game_state.final_hallway
                     player.inventory.remove("wheel handle")
                     player.location.description = 'Trapeze artists swing above. The door now remains open.'
-                    print(f'\n{player.location.describe_exits()}')
                 else:
                     print("\nThe wheel handle doesn't fit anywhere here.")
-                    print(f'\n{player.location.describe_exits()}')
 
             else:
                 print("\nYou can't use that here.")
-                print(f'\n{player.location.describe_exits()}')
 
         elif command.startswith("take "):
             item = command.split("take ")[1]
